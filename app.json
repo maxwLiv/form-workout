@@ -32,6 +32,12 @@
       "expo-sharing",
       "expo-status-bar",
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "80eadf5b-8edf-418d-8442-62729d318020"
+      }
+    },
+    "owner": "maxliv"
   }
 }
