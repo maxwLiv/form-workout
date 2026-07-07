@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Form Workout",
+    "description": "Plan workouts, log sets, schedule training, and track progress offline.",
+    "slug": "form-workout",
+    "githubUrl": "https://github.com/maxwLiv/form-workout",
+    "scheme": "formworkout",
+    "version": "0.8.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon-form-v1.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#11160f",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.maxliv.formworkout"
+    },
+    "android": {
+      "package": "com.maxliv.formworkout",
+      "adaptiveIcon": {
+        "backgroundColor": "#11160f",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-sharing",
+      "expo-status-bar",
+      "expo-font"
+    ]
+  }
+}
