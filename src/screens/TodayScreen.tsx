@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WorkoutLoggerModal } from '../components/WorkoutLoggerModal';
 import { useAppData, WorkoutPlan } from '../data/AppDataContext';
@@ -10,8 +10,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { displayVolume, formatMeasurement } from '../utils/units';
 
 export function TodayScreen() {
-  const { plans, exercises, sessions, schedule, preferences } = useAppData();
-  const [activePlan, setActivePlan] = useState<WorkoutPlan | null>(null);
+  const { plans, exercises, sessions, schedule, preferences, activeWorkoutDraft, startWorkoutDraft, discardActiveWorkoutDraft } = useAppData();
+  const [loggerOpen, setLoggerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const todayIndex = new Date().getDay();
   const scheduledPlan = plans.find((plan) => plan.id === schedule[todayIndex]);
@@ -23,6 +23,18 @@ export function TodayScreen() {
   const completedExercises = completedSession?.exerciseLogs.filter((log) => log.sets.length > 0) ?? [];
   const totalVolume = sessions.reduce((sessionTotal, session) => sessionTotal + session.exerciseLogs.reduce((logTotal, log) => logTotal + log.sets.reduce((setTotal, set) => setTotal + (set.weight ?? 0) * (set.reps ?? 0), 0), 0), 0);
   const date = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date()).toUpperCase();
+  function startWorkout(plan: WorkoutPlan) {
+    if (!activeWorkoutDraft) {
+      startWorkoutDraft(plan);
+      setLoggerOpen(true);
+      return;
+    }
+    Alert.alert('Workout already in progress', `${activeWorkoutDraft.planName} is still active.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Resume current', onPress: () => setLoggerOpen(true) },
+      { text: 'Discard and start new', style: 'destructive', onPress: () => { discardActiveWorkoutDraft(); setTimeout(() => { startWorkoutDraft(plan); setLoggerOpen(true); }, 0); } },
+    ]);
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -32,10 +44,11 @@ export function TodayScreen() {
           <Text style={styles.heroEyebrow}>{completedSession ? 'SESSION SAVED' : "TODAY'S WORKOUT"}</Text>
           <Text style={styles.heroTitle}>{completedSession ? 'Workout complete' : scheduledPlan?.name ?? 'Recovery day'}</Text>
           <Text style={styles.heroDetail}>{completedSession ? `${scheduledPlan?.name} - ${completedExercises.length} exercises completed` : scheduledPlan ? `${scheduledPlan.exercises.length} exercises scheduled for today` : 'No workout scheduled - rest and recharge'}</Text>
-          <TouchableOpacity disabled={!scheduledPlan || !!completedSession} onPress={() => scheduledPlan && setActivePlan(scheduledPlan)} style={[styles.startButton, (!scheduledPlan || !!completedSession) && styles.disabledButton]} activeOpacity={0.8}>
+          <TouchableOpacity disabled={!scheduledPlan || !!completedSession} onPress={() => scheduledPlan && startWorkout(scheduledPlan)} style={[styles.startButton, (!scheduledPlan || !!completedSession) && styles.disabledButton]} activeOpacity={0.8}>
             <Text style={styles.startButtonText}>{completedSession ? 'Completed  ✓' : scheduledPlan ? 'Start workout  ->' : 'Rest day'}</Text>
           </TouchableOpacity>
         </View>
+        {activeWorkoutDraft && <TouchableOpacity onPress={() => setLoggerOpen(true)} style={styles.resumeCard} activeOpacity={0.85}><Text style={styles.resumeEyebrow}>WORKOUT IN PROGRESS</Text><Text style={styles.resumeTitle}>Resume {activeWorkoutDraft.planName}</Text><Text style={styles.resumeDetail}>Your typed entries are saved until you finish or discard.</Text></TouchableOpacity>}
 
         <Text style={styles.sectionTitle}>{completedSession ? 'Completed summary' : scheduledPlan ? 'On the plan' : "Today's focus"}</Text>
         {completedSession ? <View style={styles.list}>
@@ -59,7 +72,7 @@ export function TodayScreen() {
           <View style={styles.stat}><Text style={styles.statValue}>{formatMeasurement(displayVolume(totalVolume, preferences))} {preferences.weightUnit}</Text><Text style={styles.statLabel}>TOTAL VOLUME</Text></View>
         </View>
       </ScrollView>
-      <WorkoutLoggerModal plan={activePlan} visible={!!activePlan} onClose={() => setActivePlan(null)} />
+      <WorkoutLoggerModal visible={loggerOpen} onClose={() => setLoggerOpen(false)} />
       <SettingsModal visible={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </SafeAreaView>
   );
@@ -71,6 +84,7 @@ const styles = StyleSheet.create({
   hero: { backgroundColor: colors.green, borderRadius: 24, padding: 25 }, completedHero: { backgroundColor: '#355c3e' }, heroEyebrow: { color: colors.lime, fontSize: 11, fontWeight: '800', letterSpacing: 1.4 },
   heroTitle: { color: 'white', fontSize: 37, fontWeight: '800', marginTop: 10 }, heroDetail: { color: '#c5d0c3', fontSize: 14, marginTop: 4 },
   startButton: { backgroundColor: colors.lime, borderRadius: 12, marginTop: 28, padding: 15, alignItems: 'center' }, disabledButton: { opacity: 0.62 }, startButtonText: { color: '#17200f', fontSize: 15, fontWeight: '800' },
+  resumeCard: { backgroundColor: colors.surface, borderColor: colors.lime, borderWidth: 1, borderRadius: 18, padding: 16, marginTop: 14 }, resumeEyebrow: { color: colors.lime, fontSize: 11, fontWeight: '800', letterSpacing: 1.2 }, resumeTitle: { color: colors.text, fontSize: 18, fontWeight: '800', marginTop: 5 }, resumeDetail: { color: colors.muted, fontSize: 12, marginTop: 4 },
   sectionTitle: { color: colors.text, fontSize: 20, fontWeight: '800', marginTop: 30, marginBottom: 13 }, list: { backgroundColor: colors.card, borderRadius: 18, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 13, padding: 16, borderBottomColor: '#deddd4', borderBottomWidth: StyleSheet.hairlineWidth }, lastRow: { borderBottomWidth: 0 }, rowCopy: { flex: 1 },
   number: { width: 30, height: 30, borderRadius: 9, backgroundColor: '#e4ecd9', alignItems: 'center', justifyContent: 'center' }, completedNumber: { backgroundColor: colors.green }, completedNumberText: { color: colors.lime, fontWeight: '900' }, numberText: { color: colors.green, fontWeight: '800' },

@@ -6,11 +6,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  Exercise, PlannedSet, PlanExercise, TrackingMethod, WorkoutPlan, WorkoutPlanInput,
+  Exercise, ExerciseInput, PlannedSet, PlanExercise, TrackingMethod, WorkoutPlan, WorkoutPlanInput,
   UserPreferences, trackingMethods, useAppData,
 } from '../data/AppDataContext';
 import { colors } from '../theme';
 import { WorkoutLoggerModal } from '../components/WorkoutLoggerModal';
+import { ExerciseFormModal } from '../components/ExerciseFormModal';
 import { displayDistance, displayWeight, storeDistance, storeWeight } from '../utils/units';
 
 const uid = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -43,10 +44,10 @@ function prescriptionSummary(item: PlanExercise, exercise: Exercise | undefined,
 }
 
 export function PlansScreen() {
-  const { plans, exercises, preferences, addPlan, updatePlan, deletePlan } = useAppData();
+  const { plans, exercises, preferences, addPlan, updatePlan, deletePlan, activeWorkoutDraft, startWorkoutDraft, discardActiveWorkoutDraft } = useAppData();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<WorkoutPlan | null>(null);
-  const [activePlan, setActivePlan] = useState<WorkoutPlan | null>(null);
+  const [loggerOpen, setLoggerOpen] = useState(false);
 
   function openAdd() { setEditing(null); setFormOpen(true); }
   function openEdit(plan: WorkoutPlan) { setEditing(plan); setFormOpen(true); }
@@ -59,6 +60,18 @@ export function PlansScreen() {
   function save(input: WorkoutPlanInput) {
     editing ? updatePlan(editing.id, input) : addPlan(input);
     setFormOpen(false);
+  }
+  function startWorkout(plan: WorkoutPlan) {
+    if (!activeWorkoutDraft) {
+      startWorkoutDraft(plan);
+      setLoggerOpen(true);
+      return;
+    }
+    Alert.alert('Workout already in progress', `${activeWorkoutDraft.planName} is still active.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Resume current', onPress: () => setLoggerOpen(true) },
+      { text: 'Discard and start new', style: 'destructive', onPress: () => { discardActiveWorkoutDraft(); setTimeout(() => { startWorkoutDraft(plan); setLoggerOpen(true); }, 0); } },
+    ]);
   }
 
   return (
@@ -82,13 +95,13 @@ export function PlansScreen() {
               return exercise ? <View key={item.id} style={styles.planExercise}><Text style={styles.order}>{index + 1}</Text><View style={styles.planExerciseCopy}><Text style={styles.planExerciseName}>{exercise.name}</Text><Text style={styles.planExerciseTarget}>{prescriptionSummary(item, exercise, preferences)}</Text></View></View> : null;
             })}
             {!!plan.notes && <Text style={styles.planNotes}>{plan.notes}</Text>}
-            <Pressable onPress={() => setActivePlan(plan)} style={styles.startButton}><Ionicons name="play" size={15} color={colors.darkText} /><Text style={styles.startButtonText}>Start workout</Text></Pressable>
+            <Pressable onPress={() => startWorkout(plan)} style={styles.startButton}><Ionicons name="play" size={15} color={colors.darkText} /><Text style={styles.startButtonText}>Start workout</Text></Pressable>
           </View>
         ))}
         {!plans.length && <View style={styles.empty}><Ionicons name="list-outline" size={42} color={colors.green} /><Text style={styles.emptyTitle}>No workout plans</Text><Text style={styles.emptyText}>Combine exercises into your first reusable routine.</Text><Pressable onPress={openAdd} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Create plan</Text></Pressable></View>}
       </ScrollView>
       <PlanForm visible={formOpen} plan={editing} allPlans={plans} exercises={exercises} onCancel={() => setFormOpen(false)} onSave={save} />
-      <WorkoutLoggerModal plan={activePlan} visible={!!activePlan} onClose={() => setActivePlan(null)} />
+      <WorkoutLoggerModal visible={loggerOpen} onClose={() => setLoggerOpen(false)} />
     </SafeAreaView>
   );
 }
@@ -99,16 +112,24 @@ function PlanForm({ visible, plan, allPlans, exercises, onCancel, onSave }: Form
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<PlanExercise[]>([]);
   const [error, setError] = useState('');
+  const [exerciseFormOpen, setExerciseFormOpen] = useState(false);
+  const { addExercise: createExerciseInLibrary } = useAppData();
 
   function loadForm() {
     setName(plan?.name ?? ''); setNotes(plan?.notes ?? '');
     setItems(plan ? plan.exercises.map((item) => ({ ...item, plannedSets: item.plannedSets.map((set) => ({ ...set })) })) : []);
     setError('');
   }
-  function addExercise(exercise: Exercise) {
+  function addExerciseToPlan(exercise: Exercise) {
     if (items.some((item) => item.exerciseId === exercise.id)) return;
     const setCount = ['duration', 'distance_duration'].includes(exercise.trackingMethod) ? 1 : 3;
     setItems((current) => [...current, { id: uid('plan-exercise'), exerciseId: exercise.id, plannedSets: Array.from({ length: setCount }, () => defaultSet(exercise.trackingMethod)) }]);
+  }
+  function createExercise(input: ExerciseInput) {
+    const exercise = createExerciseInLibrary(input);
+    addExerciseToPlan(exercise);
+    setExerciseFormOpen(false);
+    Alert.alert('Exercise added', `${exercise.name} was added to your library and this plan.`);
   }
   function removeExercise(id: string) { setItems((current) => current.filter((item) => item.id !== id)); }
   function move(index: number, direction: -1 | 1) {
@@ -153,10 +174,11 @@ function PlanForm({ visible, plan, allPlans, exercises, onCancel, onSave }: Form
                 </View>
               ) : null;
             })}
-            <Text style={formStyles.label}>ADD EXERCISES</Text>
-            <View style={formStyles.availableList}>{exercises.filter((exercise) => !items.some((item) => item.exerciseId === exercise.id)).sort((a, b) => a.name.localeCompare(b.name)).map((exercise) => <Pressable key={exercise.id} onPress={() => addExercise(exercise)} style={formStyles.availableRow}><View style={formStyles.availableIcon}><Ionicons name="add" size={18} color={colors.green} /></View><View style={formStyles.availableCopy}><Text style={formStyles.availableName}>{exercise.name}</Text><Text style={formStyles.availableMeta}>{exercise.exerciseType} · {exercise.muscleGroup}</Text></View></Pressable>)}</View>
+            <View style={formStyles.addExerciseHeader}><Text style={formStyles.label}>ADD EXERCISES</Text><Pressable onPress={() => setExerciseFormOpen(true)} style={formStyles.createExerciseButton}><Ionicons name="create-outline" size={16} color={colors.darkText} /><Text style={formStyles.createExerciseText}>Create new</Text></Pressable></View>
+            <View style={formStyles.availableList}>{exercises.filter((exercise) => !items.some((item) => item.exerciseId === exercise.id)).sort((a, b) => a.name.localeCompare(b.name)).map((exercise) => <Pressable key={exercise.id} onPress={() => addExerciseToPlan(exercise)} style={formStyles.availableRow}><View style={formStyles.availableIcon}><Ionicons name="add" size={18} color={colors.green} /></View><View style={formStyles.availableCopy}><Text style={formStyles.availableName}>{exercise.name}</Text><Text style={formStyles.availableMeta}>{exercise.exerciseType} · {exercise.muscleGroup}</Text></View></Pressable>)}</View>
           </ScrollView>
         </KeyboardAvoidingView>
+        <ExerciseFormModal visible={exerciseFormOpen} exercise={null} allExercises={exercises} title="Create Exercise" onCancel={() => setExerciseFormOpen(false)} onSave={createExercise} />
       </SafeAreaView>
     </Modal>
   );
@@ -194,5 +216,5 @@ const styles = StyleSheet.create({
 });
 
 const formStyles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.background }, flex: { flex: 1 }, toolbar: { minHeight: 60, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }, toolbarAction: { width: 72, minHeight: 44, alignItems: 'center', justifyContent: 'center' }, cancel: { color: colors.muted, fontSize: 16 }, save: { color: colors.lime, fontSize: 16, fontWeight: '800' }, formTitle: { color: colors.text, fontSize: 17, fontWeight: '800' }, content: { padding: 22, paddingBottom: 60 }, label: { color: colors.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginTop: 19, marginBottom: 8 }, optional: { color: '#6f786b', fontWeight: '500' }, input: { backgroundColor: colors.surface, color: colors.text, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 13, fontSize: 15 }, notesInput: { minHeight: 65, textAlignVertical: 'top' }, inputError: { borderColor: '#d56c55' }, error: { color: '#e98570', fontSize: 12, marginTop: 6 }, sectionHeading: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }, sectionHint: { color: colors.muted, fontSize: 11, marginBottom: 8 }, emptySelection: { borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, borderRadius: 13, padding: 20 }, emptySelectionText: { color: colors.muted, textAlign: 'center', fontSize: 12 }, selectedCard: { backgroundColor: colors.surface, borderRadius: 15, borderWidth: 1, borderColor: colors.border, padding: 12, marginBottom: 10 }, selectedHeader: { flexDirection: 'row', alignItems: 'center' }, selectedOrder: { color: colors.lime, width: 24, fontWeight: '800' }, selectedCopy: { flex: 1 }, selectedName: { color: colors.text, fontSize: 14, fontWeight: '800' }, selectedMeta: { color: colors.muted, fontSize: 11, marginTop: 2 }, smallButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, setArea: { marginTop: 11, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, paddingTop: 7 }, setRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginTop: 5 }, setNumber: { color: colors.muted, width: 18, paddingBottom: 10, textAlign: 'center', fontSize: 11, fontWeight: '800' }, numberField: { flex: 1 }, numberLabel: { color: colors.muted, fontSize: 11, fontWeight: '800', marginBottom: 3 }, numberInput: { color: colors.text, backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 9, paddingVertical: 8, fontSize: 13 }, removeSet: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, addSet: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', marginTop: 10, marginLeft: 20 }, addSetText: { color: colors.lime, fontSize: 11, fontWeight: '800' }, availableList: { gap: 7 }, availableRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 12, padding: 11 }, availableIcon: { width: 44, height: 44, borderRadius: 9, backgroundColor: '#e4ecd9', alignItems: 'center', justifyContent: 'center' }, availableCopy: { marginLeft: 10 }, availableName: { color: colors.darkText, fontSize: 13, fontWeight: '800' }, availableMeta: { color: colors.darkMuted, fontSize: 11, marginTop: 2 },
+  safeArea: { flex: 1, backgroundColor: colors.background }, flex: { flex: 1 }, toolbar: { minHeight: 60, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }, toolbarAction: { width: 72, minHeight: 44, alignItems: 'center', justifyContent: 'center' }, cancel: { color: colors.muted, fontSize: 16 }, save: { color: colors.lime, fontSize: 16, fontWeight: '800' }, formTitle: { color: colors.text, fontSize: 17, fontWeight: '800' }, content: { padding: 22, paddingBottom: 60 }, label: { color: colors.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginTop: 19, marginBottom: 8 }, optional: { color: '#6f786b', fontWeight: '500' }, input: { backgroundColor: colors.surface, color: colors.text, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 13, fontSize: 15 }, notesInput: { minHeight: 65, textAlignVertical: 'top' }, inputError: { borderColor: '#d56c55' }, error: { color: '#e98570', fontSize: 12, marginTop: 6 }, sectionHeading: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }, sectionHint: { color: colors.muted, fontSize: 11, marginBottom: 8 }, emptySelection: { borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, borderRadius: 13, padding: 20 }, emptySelectionText: { color: colors.muted, textAlign: 'center', fontSize: 12 }, selectedCard: { backgroundColor: colors.surface, borderRadius: 15, borderWidth: 1, borderColor: colors.border, padding: 12, marginBottom: 10 }, selectedHeader: { flexDirection: 'row', alignItems: 'center' }, selectedOrder: { color: colors.lime, width: 24, fontWeight: '800' }, selectedCopy: { flex: 1 }, selectedName: { color: colors.text, fontSize: 14, fontWeight: '800' }, selectedMeta: { color: colors.muted, fontSize: 11, marginTop: 2 }, smallButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, setArea: { marginTop: 11, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, paddingTop: 7 }, setRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginTop: 5 }, setNumber: { color: colors.muted, width: 18, paddingBottom: 10, textAlign: 'center', fontSize: 11, fontWeight: '800' }, numberField: { flex: 1 }, numberLabel: { color: colors.muted, fontSize: 11, fontWeight: '800', marginBottom: 3 }, numberInput: { color: colors.text, backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 9, paddingVertical: 8, fontSize: 13 }, removeSet: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, addSet: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', marginTop: 10, marginLeft: 20 }, addSetText: { color: colors.lime, fontSize: 11, fontWeight: '800' }, addExerciseHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }, createExerciseButton: { minHeight: 34, borderRadius: 17, backgroundColor: colors.lime, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 5 }, createExerciseText: { color: colors.darkText, fontSize: 11, fontWeight: '800' }, availableList: { gap: 7 }, availableRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 12, padding: 11 }, availableIcon: { width: 44, height: 44, borderRadius: 9, backgroundColor: '#e4ecd9', alignItems: 'center', justifyContent: 'center' }, availableCopy: { marginLeft: 10 }, availableName: { color: colors.darkText, fontSize: 13, fontWeight: '800' }, availableMeta: { color: colors.darkMuted, fontSize: 11, marginTop: 2 },
 });

@@ -5,14 +5,17 @@
     "slug": "form-workout",
     "githubUrl": "https://github.com/maxwLiv/form-workout",
     "scheme": "formworkout",
-    "version": "0.8.0",
+    "version": "0.9.0",
     "orientation": "portrait",
     "icon": "./assets/icon-form-v1.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#11160f",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.maxliv.formworkout"
+      "bundleIdentifier": "com.maxliv.formworkout",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.maxliv.formworkout",

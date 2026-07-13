@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WorkoutLoggerModal } from '../components/WorkoutLoggerModal';
 import { WorkoutPlan, useAppData } from '../data/AppDataContext';
@@ -15,13 +15,25 @@ const week = [
 ];
 
 export function ScheduleScreen() {
-  const { plans, exercises, sessions, schedule, setScheduledPlan } = useAppData();
+  const { plans, exercises, sessions, schedule, setScheduledPlan, activeWorkoutDraft, startWorkoutDraft, discardActiveWorkoutDraft } = useAppData();
   const [selectingDay, setSelectingDay] = useState<number | null>(null);
-  const [activePlan, setActivePlan] = useState<WorkoutPlan | null>(null);
+  const [loggerOpen, setLoggerOpen] = useState(false);
   const today = new Date().getDay();
   const assignedCount = Object.values(schedule).filter(Boolean).length;
   const planFor = (day: number) => plans.find((plan) => plan.id === schedule[day]);
   function choose(planId: string | null) { if (selectingDay !== null) setScheduledPlan(selectingDay, planId); setSelectingDay(null); }
+  function startWorkout(plan: WorkoutPlan) {
+    if (!activeWorkoutDraft) {
+      startWorkoutDraft(plan);
+      setLoggerOpen(true);
+      return;
+    }
+    Alert.alert('Workout already in progress', `${activeWorkoutDraft.planName} is still active.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Resume current', onPress: () => setLoggerOpen(true) },
+      { text: 'Discard and start new', style: 'destructive', onPress: () => { discardActiveWorkoutDraft(); setTimeout(() => { startWorkoutDraft(plan); setLoggerOpen(true); }, 0); } },
+    ]);
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -44,13 +56,13 @@ export function ScheduleScreen() {
               </Pressable>
               {isToday && plan && (completedSession
                 ? <View style={[styles.startButton, styles.completedButton]}><Ionicons name="checkmark-circle" size={16} color={colors.darkText} /><Text style={styles.startText}>Workout complete</Text></View>
-                : <Pressable onPress={() => setActivePlan(plan)} style={styles.startButton}><Ionicons name="play" size={14} color={colors.darkText} /><Text style={styles.startText}>Start today's workout</Text></Pressable>)}
+                : <Pressable onPress={() => startWorkout(plan)} style={styles.startButton}><Ionicons name="play" size={14} color={colors.darkText} /><Text style={styles.startText}>Start today's workout</Text></Pressable>)}
             </View>
           );
         })}
       </ScrollView>
       <DayPlanPicker visible={selectingDay !== null} day={week.find((item) => item.index === selectingDay)?.name ?? ''} currentPlanId={selectingDay === null ? null : schedule[selectingDay]} plans={plans} exercises={exercises} onChoose={choose} onCancel={() => setSelectingDay(null)} />
-      <WorkoutLoggerModal plan={activePlan} visible={!!activePlan} onClose={() => setActivePlan(null)} />
+      <WorkoutLoggerModal visible={loggerOpen} onClose={() => setLoggerOpen(false)} />
     </SafeAreaView>
   );
 }

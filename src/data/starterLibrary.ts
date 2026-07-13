@@ -1,0 +1,166 @@
+import type { Exercise, PlannedSet, WorkoutPlan, WeeklySchedule } from './AppDataContext';
+
+const strengthSet = (id: string, reps = 10, weight?: number): PlannedSet => ({ id, targetReps: reps, targetWeight: weight });
+const timedSet = (id: string, seconds = 30): PlannedSet => ({ id, targetDurationSeconds: seconds });
+const durationSet = (id: string, minutes = 10): PlannedSet => ({ id, targetDurationSeconds: minutes * 60 });
+const distanceSet = (id: string, miles = 1, minutes = 10): PlannedSet => ({ id, targetDistance: miles, targetDurationSeconds: minutes * 60 });
+const intervalSet = (id: string, work = 30, rest = 30): PlannedSet => ({ id, workSeconds: work, restSeconds: rest });
+
+export const starterExercises: Exercise[] = [
+  { id: 'bench-press', name: 'Barbell Bench Press', muscleGroup: 'Chest', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Barbell', notes: '' },
+  { id: 'incline-press', name: 'Incline Dumbbell Press', muscleGroup: 'Chest', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Dumbbells', notes: '' },
+  { id: 'dumbbell-bench-press', name: 'Dumbbell Bench Press', muscleGroup: 'Chest', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Dumbbells', notes: '' },
+  { id: 'push-up', name: 'Push-Up', muscleGroup: 'Chest', exerciseType: 'Bodyweight', trackingMethod: 'reps_only', equipment: 'Bodyweight', notes: '' },
+  { id: 'cable-fly', name: 'Cable Fly', muscleGroup: 'Chest', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Cable machine', notes: '' },
+  { id: 'pec-deck', name: 'Pec Deck', muscleGroup: 'Chest', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Machine', notes: '' },
+  { id: 'chest-dip', name: 'Chest Dip', muscleGroup: 'Chest', exerciseType: 'Bodyweight', trackingMethod: 'assisted_weight', equipment: 'Dip station', notes: '' },
+  { id: 'machine-chest-press', name: 'Machine Chest Press', muscleGroup: 'Chest', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Machine', notes: '' },
+  { id: 'pull-up', name: 'Pull-Up', muscleGroup: 'Back', exerciseType: 'Bodyweight', trackingMethod: 'assisted_weight', equipment: 'Pull-up bar', notes: '' },
+  { id: 'lat-pulldown', name: 'Lat Pulldown', muscleGroup: 'Back', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Cable machine', notes: '' },
+  { id: 'barbell-row', name: 'Barbell Row', muscleGroup: 'Back', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Barbell', notes: '' },
+  { id: 'seated-cable-row', name: 'Seated Cable Row', muscleGroup: 'Back', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Cable machine', notes: '' },
+  { id: 'one-arm-dumbbell-row', name: 'One-Arm Dumbbell Row', muscleGroup: 'Back', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Dumbbell', notes: '' },
+  { id: 'face-pull', name: 'Face Pull', muscleGroup: 'Back', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Cable machine', notes: '' },
+  { id: 'straight-arm-pulldown', name: 'Straight-Arm Pulldown', muscleGroup: 'Back', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Cable machine', notes: '' },
+  { id: 'back-extension', name: 'Back Extension', muscleGroup: 'Back', exerciseType: 'Bodyweight', trackingMethod: 'reps_only', equipment: 'Back extension bench', notes: '' },
+  { id: 'squat', name: 'Barbell Squat', muscleGroup: 'Legs', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Barbell', notes: '' },
+  { id: 'front-squat', name: 'Front Squat', muscleGroup: 'Legs', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Barbell', notes: '' },
+  { id: 'leg-press', name: 'Leg Press', muscleGroup: 'Legs', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Machine', notes: '' },
+  { id: 'romanian-deadlift', name: 'Romanian Deadlift', muscleGroup: 'Legs', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Barbell or dumbbells', notes: '' },
+  { id: 'walking-lunge', name: 'Walking Lunge', muscleGroup: 'Legs', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Dumbbells or bodyweight', notes: '' },
+  { id: 'leg-extension', name: 'Leg Extension', muscleGroup: 'Legs', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Machine', notes: '' },
+  { id: 'leg-curl', name: 'Seated Leg Curl', muscleGroup: 'Legs', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Machine', notes: '' },
+  { id: 'standing-calf-raise', name: 'Standing Calf Raise', muscleGroup: 'Legs', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Machine or dumbbells', notes: '' },
+  { id: 'hip-thrust', name: 'Hip Thrust', muscleGroup: 'Legs', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Barbell or machine', notes: '' },
+  { id: 'goblet-squat', name: 'Goblet Squat', muscleGroup: 'Legs', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Dumbbell or kettlebell', notes: '' },
+  { id: 'shoulder-press', name: 'Dumbbell Shoulder Press', muscleGroup: 'Shoulders', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Dumbbells', notes: '' },
+  { id: 'barbell-overhead-press', name: 'Barbell Overhead Press', muscleGroup: 'Shoulders', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Barbell', notes: '' },
+  { id: 'lateral-raise', name: 'Lateral Raise', muscleGroup: 'Shoulders', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Dumbbells or cable', notes: '' },
+  { id: 'rear-delt-fly', name: 'Rear Delt Fly', muscleGroup: 'Shoulders', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Dumbbells or machine', notes: '' },
+  { id: 'arnold-press', name: 'Arnold Press', muscleGroup: 'Shoulders', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Dumbbells', notes: '' },
+  { id: 'upright-row', name: 'Upright Row', muscleGroup: 'Shoulders', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Barbell, cable, or dumbbells', notes: '' },
+  { id: 'shrug', name: 'Shrug', muscleGroup: 'Shoulders', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Dumbbells or barbell', notes: '' },
+  { id: 'biceps-curl', name: 'Dumbbell Biceps Curl', muscleGroup: 'Arms', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Dumbbells', notes: '' },
+  { id: 'barbell-curl', name: 'Barbell Curl', muscleGroup: 'Arms', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Barbell', notes: '' },
+  { id: 'hammer-curl', name: 'Hammer Curl', muscleGroup: 'Arms', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Dumbbells', notes: '' },
+  { id: 'preacher-curl', name: 'Preacher Curl', muscleGroup: 'Arms', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Machine or EZ bar', notes: '' },
+  { id: 'triceps-pushdown', name: 'Triceps Pushdown', muscleGroup: 'Arms', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Cable machine', notes: '' },
+  { id: 'overhead-triceps-extension', name: 'Overhead Triceps Extension', muscleGroup: 'Arms', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Cable or dumbbell', notes: '' },
+  { id: 'skull-crusher', name: 'Skull Crusher', muscleGroup: 'Arms', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'EZ bar or dumbbells', notes: '' },
+  { id: 'close-grip-bench-press', name: 'Close-Grip Bench Press', muscleGroup: 'Arms', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Barbell', notes: '' },
+  { id: 'plank', name: 'Plank', muscleGroup: 'Core', exerciseType: 'Bodyweight', trackingMethod: 'timed_sets', equipment: 'Bodyweight', notes: '' },
+  { id: 'side-plank', name: 'Side Plank', muscleGroup: 'Core', exerciseType: 'Bodyweight', trackingMethod: 'timed_sets', equipment: 'Bodyweight', notes: '' },
+  { id: 'dead-bug', name: 'Dead Bug', muscleGroup: 'Core', exerciseType: 'Bodyweight', trackingMethod: 'reps_only', equipment: 'Bodyweight', notes: '' },
+  { id: 'hanging-leg-raise', name: 'Hanging Leg Raise', muscleGroup: 'Core', exerciseType: 'Bodyweight', trackingMethod: 'reps_only', equipment: 'Pull-up bar', notes: '' },
+  { id: 'cable-crunch', name: 'Cable Crunch', muscleGroup: 'Core', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Cable machine', notes: '' },
+  { id: 'russian-twist', name: 'Russian Twist', muscleGroup: 'Core', exerciseType: 'Strength', trackingMethod: 'custom_count', equipment: 'Medicine ball or bodyweight', notes: '' },
+  { id: 'ab-wheel-rollout', name: 'Ab Wheel Rollout', muscleGroup: 'Core', exerciseType: 'Bodyweight', trackingMethod: 'reps_only', equipment: 'Ab wheel', notes: '' },
+  { id: 'easy-run', name: 'Easy Run', muscleGroup: 'Legs', exerciseType: 'Cardio', trackingMethod: 'distance_duration', equipment: 'Running shoes', notes: '' },
+  { id: 'treadmill-walk', name: 'Treadmill Walk', muscleGroup: 'Legs', exerciseType: 'Cardio', trackingMethod: 'distance_duration', equipment: 'Treadmill', notes: '' },
+  { id: 'cycling', name: 'Cycling', muscleGroup: 'Legs', exerciseType: 'Cardio', trackingMethod: 'distance_duration', equipment: 'Bike', notes: '' },
+  { id: 'rowing-machine', name: 'Rowing Machine', muscleGroup: 'Full Body', exerciseType: 'Cardio', trackingMethod: 'distance_duration', equipment: 'Rower', notes: '' },
+  { id: 'elliptical', name: 'Elliptical', muscleGroup: 'Full Body', exerciseType: 'Cardio', trackingMethod: 'duration', equipment: 'Elliptical', notes: '' },
+  { id: 'jump-rope', name: 'Jump Rope', muscleGroup: 'Full Body', exerciseType: 'Cardio', trackingMethod: 'timed_sets', equipment: 'Jump rope', notes: '' },
+  { id: 'battle-ropes', name: 'Battle Ropes', muscleGroup: 'Full Body', exerciseType: 'Cardio', trackingMethod: 'intervals', equipment: 'Battle ropes', notes: '' },
+  { id: 'kettlebell-swing', name: 'Kettlebell Swing', muscleGroup: 'Full Body', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Kettlebell', notes: '' },
+  { id: 'burpee', name: 'Burpee', muscleGroup: 'Full Body', exerciseType: 'Bodyweight', trackingMethod: 'reps_only', equipment: 'Bodyweight', notes: '' },
+  { id: 'mountain-climber', name: 'Mountain Climber', muscleGroup: 'Full Body', exerciseType: 'Bodyweight', trackingMethod: 'custom_count', equipment: 'Bodyweight', notes: '' },
+  { id: 'farmers-carry', name: "Farmer's Carry", muscleGroup: 'Full Body', exerciseType: 'Strength', trackingMethod: 'distance_duration', equipment: 'Dumbbells or kettlebells', notes: '' },
+  { id: 'medicine-ball-slam', name: 'Medicine Ball Slam', muscleGroup: 'Full Body', exerciseType: 'Strength', trackingMethod: 'custom_count', equipment: 'Medicine ball', notes: '' },
+  { id: 'sun-salutation', name: 'Sun Salutation', muscleGroup: 'Full Body', exerciseType: 'Yoga', trackingMethod: 'duration', equipment: 'Yoga mat', notes: '' },
+  { id: 'pilates-hundred', name: 'The Hundred', muscleGroup: 'Core', exerciseType: 'Pilates', trackingMethod: 'timed_sets', equipment: 'Mat', notes: '' },
+  { id: 'worlds-greatest-stretch', name: "World's Greatest Stretch", muscleGroup: 'Full Body', exerciseType: 'Mobility', trackingMethod: 'timed_sets', equipment: 'Bodyweight', notes: '' },
+  { id: 'hip-flexor-stretch', name: 'Hip Flexor Stretch', muscleGroup: 'Legs', exerciseType: 'Stretching', trackingMethod: 'timed_sets', equipment: 'Bodyweight', notes: '' },
+  { id: 'hamstring-stretch', name: 'Hamstring Stretch', muscleGroup: 'Legs', exerciseType: 'Stretching', trackingMethod: 'timed_sets', equipment: 'Bodyweight', notes: '' },
+  { id: 'thoracic-rotation', name: 'Thoracic Rotation', muscleGroup: 'Back', exerciseType: 'Mobility', trackingMethod: 'reps_only', equipment: 'Bodyweight', notes: '' },
+  { id: 'band-pull-apart', name: 'Band Pull-Apart', muscleGroup: 'Shoulders', exerciseType: 'Mobility', trackingMethod: 'reps_only', equipment: 'Resistance band', notes: '' },
+  { id: 'cat-cow', name: 'Cat-Cow', muscleGroup: 'Back', exerciseType: 'Mobility', trackingMethod: 'reps_only', equipment: 'Bodyweight', notes: '' },
+  { id: 'childs-pose', name: "Child's Pose", muscleGroup: 'Full Body', exerciseType: 'Stretching', trackingMethod: 'duration', equipment: 'Yoga mat', notes: '' },
+  { id: 'foam-rolling', name: 'Foam Rolling', muscleGroup: 'Full Body', exerciseType: 'Mobility', trackingMethod: 'duration', equipment: 'Foam roller', notes: '' },
+];
+
+const sets = (exerciseId: string, count = 3, reps = 10) => Array.from({ length: count }, (_, index) => strengthSet(`${exerciseId}-${index + 1}`, reps));
+const timedSets = (exerciseId: string, count = 3, seconds = 30) => Array.from({ length: count }, (_, index) => timedSet(`${exerciseId}-${index + 1}`, seconds));
+
+const planExercise = (exerciseId: string, plannedSets: PlannedSet[]): { id: string; exerciseId: string; plannedSets: PlannedSet[] } => ({
+  id: `${exerciseId}-template`,
+  exerciseId,
+  plannedSets,
+});
+
+export const starterPlans: WorkoutPlan[] = [
+  { id: 'push-day', name: 'Push Day', notes: 'Chest, shoulders, and triceps.', exercises: [
+    planExercise('bench-press', sets('bench-press', 3, 8)),
+    planExercise('incline-press', sets('incline-press', 3, 10)),
+    planExercise('shoulder-press', sets('shoulder-press', 3, 10)),
+    planExercise('lateral-raise', sets('lateral-raise', 3, 12)),
+    planExercise('triceps-pushdown', sets('triceps-pushdown', 3, 12)),
+  ] },
+  { id: 'pull-day', name: 'Pull Day', notes: 'Back, rear delts, and biceps.', exercises: [
+    planExercise('lat-pulldown', sets('lat-pulldown', 3, 10)),
+    planExercise('barbell-row', sets('barbell-row', 3, 8)),
+    planExercise('seated-cable-row', sets('seated-cable-row', 3, 10)),
+    planExercise('face-pull', sets('face-pull', 3, 12)),
+    planExercise('biceps-curl', sets('biceps-curl', 3, 12)),
+  ] },
+  { id: 'leg-day', name: 'Leg Day', notes: 'Squat pattern, hinge, single-leg, and calves.', exercises: [
+    planExercise('squat', sets('squat', 3, 8)),
+    planExercise('romanian-deadlift', sets('romanian-deadlift', 3, 10)),
+    planExercise('leg-press', sets('leg-press', 3, 10)),
+    planExercise('leg-curl', sets('leg-curl', 3, 12)),
+    planExercise('standing-calf-raise', sets('standing-calf-raise', 3, 15)),
+  ] },
+  { id: 'upper-body', name: 'Upper Body', notes: 'Balanced upper-body strength session.', exercises: [
+    planExercise('dumbbell-bench-press', sets('dumbbell-bench-press', 3, 10)),
+    planExercise('seated-cable-row', sets('seated-cable-row', 3, 10)),
+    planExercise('barbell-overhead-press', sets('barbell-overhead-press', 3, 8)),
+    planExercise('lat-pulldown', sets('lat-pulldown', 3, 10)),
+    planExercise('hammer-curl', sets('hammer-curl', 2, 12)),
+    planExercise('overhead-triceps-extension', sets('overhead-triceps-extension', 2, 12)),
+  ] },
+  { id: 'lower-body', name: 'Lower Body', notes: 'Leg and glute-focused session.', exercises: [
+    planExercise('goblet-squat', sets('goblet-squat', 3, 10)),
+    planExercise('hip-thrust', sets('hip-thrust', 3, 10)),
+    planExercise('walking-lunge', sets('walking-lunge', 3, 12)),
+    planExercise('leg-extension', sets('leg-extension', 3, 12)),
+    planExercise('hamstring-stretch', timedSets('hamstring-stretch', 2, 45)),
+  ] },
+  { id: 'full-body-a', name: 'Full Body A', notes: 'Beginner-friendly full-body strength.', exercises: [
+    planExercise('goblet-squat', sets('goblet-squat', 3, 10)),
+    planExercise('machine-chest-press', sets('machine-chest-press', 3, 10)),
+    planExercise('lat-pulldown', sets('lat-pulldown', 3, 10)),
+    planExercise('romanian-deadlift', sets('romanian-deadlift', 3, 10)),
+    planExercise('plank', timedSets('plank', 3, 30)),
+  ] },
+  { id: 'full-body-b', name: 'Full Body B', notes: 'Full-body strength with conditioning.', exercises: [
+    planExercise('leg-press', sets('leg-press', 3, 10)),
+    planExercise('incline-press', sets('incline-press', 3, 10)),
+    planExercise('one-arm-dumbbell-row', sets('one-arm-dumbbell-row', 3, 10)),
+    planExercise('kettlebell-swing', sets('kettlebell-swing', 3, 15)),
+    planExercise('easy-run', [distanceSet('easy-run-1', 1, 12)]),
+  ] },
+  { id: 'core-reset', name: 'Core Reset', notes: 'Short bodyweight core work.', exercises: [
+    planExercise('plank', timedSets('plank', 3, 30)),
+    planExercise('side-plank', timedSets('side-plank', 2, 30)),
+    planExercise('dead-bug', sets('dead-bug', 3, 10)),
+    planExercise('ab-wheel-rollout', sets('ab-wheel-rollout', 3, 8)),
+  ] },
+  { id: 'conditioning', name: 'Cardio / Conditioning', notes: 'Simple conditioning circuit.', exercises: [
+    planExercise('rowing-machine', [distanceSet('rowing-machine-1', 1, 8)]),
+    planExercise('battle-ropes', [intervalSet('battle-ropes-1', 30, 30), intervalSet('battle-ropes-2', 30, 30), intervalSet('battle-ropes-3', 30, 30)]),
+    planExercise('burpee', sets('burpee', 3, 10)),
+    planExercise('jump-rope', timedSets('jump-rope', 3, 60)),
+  ] },
+  { id: 'mobility-recovery', name: 'Mobility / Recovery', notes: 'Low-intensity recovery and mobility.', exercises: [
+    planExercise('worlds-greatest-stretch', timedSets('worlds-greatest-stretch', 2, 45)),
+    planExercise('hip-flexor-stretch', timedSets('hip-flexor-stretch', 2, 45)),
+    planExercise('thoracic-rotation', sets('thoracic-rotation', 2, 8)),
+    planExercise('band-pull-apart', sets('band-pull-apart', 2, 15)),
+    planExercise('foam-rolling', [durationSet('foam-rolling-1', 8)]),
+  ] },
+];
+
+export const starterSchedule: WeeklySchedule = {
+  0: null, 1: 'push-day', 2: 'lower-body', 3: 'mobility-recovery',
+  4: 'pull-day', 5: 'leg-day', 6: null,
+};

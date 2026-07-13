@@ -1,6 +1,7 @@
 import { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { clearAppState, loadAppState, PersistedAppState, saveAppState } from './database';
+import { starterExercises, starterPlans, starterSchedule } from './starterLibrary';
 
 export const muscleGroups = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core', 'Full Body'] as const;
 export type MuscleGroup = typeof muscleGroups[number];
@@ -96,42 +97,61 @@ export type WorkoutSession = {
 };
 
 export type WorkoutSessionInput = Omit<WorkoutSession, 'id'>;
+export type ActiveWorkoutDraftSet = {
+  id: string;
+  target: PlannedSet;
+  reps: string;
+  weight: string;
+  duration: string;
+  distance: string;
+  count: string;
+  work: string;
+  rest: string;
+};
+export type ActiveWorkoutDraftExercise = {
+  id: string;
+  exerciseId: string;
+  exerciseName: string;
+  trackingMethod: TrackingMethod;
+  completed: boolean;
+  sets: ActiveWorkoutDraftSet[];
+};
+export type ActiveWorkoutDraft = {
+  id: string;
+  planId: string;
+  planName: string;
+  startedAt: string;
+  note: string;
+  exerciseLogs: ActiveWorkoutDraftExercise[];
+};
 export type WeeklySchedule = Record<number, string | null>;
 export type UserPreferences = { weightUnit: 'lb' | 'kg'; distanceUnit: 'mi' | 'km' };
 export const defaultPreferences: UserPreferences = { weightUnit: 'lb', distanceUnit: 'mi' };
+const uid = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-const starterExercises: Exercise[] = [
-  { id: 'bench-press', name: 'Barbell Bench Press', muscleGroup: 'Chest', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Barbell', notes: '' },
-  { id: 'incline-press', name: 'Incline Dumbbell Press', muscleGroup: 'Chest', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Dumbbells', notes: '' },
-  { id: 'cable-fly', name: 'Cable Fly', muscleGroup: 'Chest', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Cable machine', notes: '' },
-  { id: 'squat', name: 'Barbell Squat', muscleGroup: 'Legs', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Barbell', notes: '' },
-  { id: 'lat-pulldown', name: 'Lat Pulldown', muscleGroup: 'Back', exerciseType: 'Strength', trackingMethod: 'weight_reps', equipment: 'Cable machine', notes: '' },
-  { id: 'plank', name: 'Plank', muscleGroup: 'Core', exerciseType: 'Bodyweight', trackingMethod: 'timed_sets', equipment: 'Bodyweight', notes: '' },
-  { id: 'easy-run', name: 'Easy Run', muscleGroup: 'Legs', exerciseType: 'Cardio', trackingMethod: 'distance_duration', equipment: 'Running shoes', notes: '' },
-  { id: 'sun-salutation', name: 'Sun Salutation', muscleGroup: 'Full Body', exerciseType: 'Yoga', trackingMethod: 'duration', equipment: 'Yoga mat', notes: '' },
-  { id: 'pilates-hundred', name: 'The Hundred', muscleGroup: 'Core', exerciseType: 'Pilates', trackingMethod: 'timed_sets', equipment: 'Mat', notes: '' },
-];
-
-const starterPlans: WorkoutPlan[] = [
-  {
-    id: 'chest-plan', name: 'Chest', notes: 'A balanced chest session.',
-    exercises: ['bench-press', 'incline-press', 'cable-fly'].map((exerciseId, index) => ({
-      id: `chest-${index}`, exerciseId,
-      plannedSets: [1, 2, 3].map((set) => ({ id: `chest-${index}-${set}`, targetReps: 10 })),
-    })),
-  },
-  {
-    id: 'core-plan', name: 'Core Reset', notes: 'Short bodyweight core work.',
-    exercises: [
-      { id: 'core-plank', exerciseId: 'plank', plannedSets: [1, 2, 3].map((set) => ({ id: `core-plank-${set}`, targetDurationSeconds: 30 })) },
-      { id: 'core-pilates', exerciseId: 'pilates-hundred', plannedSets: [{ id: 'core-pilates-1', targetDurationSeconds: 60 }] },
-    ],
-  },
-];
-
-const starterSchedule: WeeklySchedule = {
-  0: null, 1: 'chest-plan', 2: 'core-plan', 3: null,
-  4: 'chest-plan', 5: null, 6: null,
+export type FitnessGoal = 'general_fitness' | 'build_muscle' | 'lose_fat' | 'build_strength' | 'improve_endurance' | 'mobility';
+export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
+export type BodyweightEntry = {
+  id: string;
+  date: string;
+  weight: number;
+  note: string;
+};
+export type UserProfile = {
+  displayName: string;
+  heightInches?: number;
+  currentWeight?: number;
+  goal: FitnessGoal;
+  experienceLevel: ExperienceLevel;
+  preferredTrainingDays: number[];
+  bodyweightEntries: BodyweightEntry[];
+};
+export const defaultProfile: UserProfile = {
+  displayName: '',
+  goal: 'general_fitness',
+  experienceLevel: 'beginner',
+  preferredTrainingDays: [1, 3, 5],
+  bodyweightEntries: [],
 };
 
 type AppDataValue = {
@@ -140,10 +160,12 @@ type AppDataValue = {
   sessions: WorkoutSession[];
   schedule: WeeklySchedule;
   preferences: UserPreferences;
-  addExercise: (input: ExerciseInput) => void;
+  profile: UserProfile;
+  activeWorkoutDraft: ActiveWorkoutDraft | null;
+  addExercise: (input: ExerciseInput) => Exercise;
   updateExercise: (id: string, input: ExerciseInput) => void;
   deleteExercise: (id: string) => boolean;
-  addPlan: (input: WorkoutPlanInput) => void;
+  addPlan: (input: WorkoutPlanInput) => WorkoutPlan;
   updatePlan: (id: string, input: WorkoutPlanInput) => void;
   deletePlan: (id: string) => void;
   addSession: (input: WorkoutSessionInput) => void;
@@ -152,7 +174,14 @@ type AppDataValue = {
   resetAllData: () => Promise<void>;
   replaceAllData: (data: PersistedAppState) => Promise<void>;
   updatePreferences: (preferences: UserPreferences) => void;
+  updateProfile: (profile: UserProfile) => void;
+  addBodyweightEntry: (entry: Omit<BodyweightEntry, 'id'>) => void;
+  deleteBodyweightEntry: (id: string) => void;
+  importStarterTemplates: () => { exercisesAdded: number; plansAdded: number };
   applySessionToPlan: (sessionId: string) => boolean;
+  startWorkoutDraft: (plan: WorkoutPlan) => ActiveWorkoutDraft | null;
+  updateActiveWorkoutDraft: (change: (draft: ActiveWorkoutDraft) => ActiveWorkoutDraft) => void;
+  discardActiveWorkoutDraft: () => void;
 };
 
 const AppDataContext = createContext<AppDataValue | null>(null);
@@ -163,6 +192,8 @@ export function AppDataProvider({ children }: PropsWithChildren) {
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [schedule, setSchedule] = useState<WeeklySchedule>(starterSchedule);
   const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences);
+  const [profile, setProfile] = useState<UserProfile>(defaultProfile);
+  const [activeWorkoutDraft, setActiveWorkoutDraft] = useState<ActiveWorkoutDraft | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
@@ -173,6 +204,8 @@ export function AppDataProvider({ children }: PropsWithChildren) {
         if (data) {
           setExercises(data.exercises); setPlans(data.plans);
           setSessions(data.sessions); setSchedule(data.schedule); setPreferences(data.preferences);
+          setProfile(data.profile ?? defaultProfile);
+          setActiveWorkoutDraft(data.activeWorkoutDraft ?? null);
         }
         if (recoveredFromCorruption) console.warn('Starter workout data was restored.');
       })
@@ -184,11 +217,11 @@ export function AppDataProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     if (!isHydrated) return;
     const timer = setTimeout(() => {
-      saveAppState({ exercises, plans, sessions, schedule, preferences })
+      saveAppState({ exercises, plans, sessions, schedule, preferences, profile, activeWorkoutDraft })
         .catch((error) => console.error('Workout data could not be saved.', error));
     }, 200);
     return () => clearTimeout(timer);
-  }, [exercises, plans, sessions, schedule, preferences, isHydrated]);
+  }, [exercises, plans, sessions, schedule, preferences, profile, activeWorkoutDraft, isHydrated]);
 
   const value = useMemo<AppDataValue>(() => ({
     exercises,
@@ -196,10 +229,13 @@ export function AppDataProvider({ children }: PropsWithChildren) {
     sessions,
     schedule,
     preferences,
-    addExercise: (input) => setExercises((current) => [
-      ...current,
-      { id: `exercise-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, ...input },
-    ]),
+    profile,
+    activeWorkoutDraft,
+    addExercise: (input) => {
+      const exercise = { id: uid('exercise'), ...input };
+      setExercises((current) => [...current, exercise]);
+      return exercise;
+    },
     updateExercise: (id, input) => setExercises((current) =>
       current.map((exercise) => exercise.id === id ? { id, ...input } : exercise),
     ),
@@ -208,10 +244,11 @@ export function AppDataProvider({ children }: PropsWithChildren) {
       setExercises((current) => current.filter((exercise) => exercise.id !== id));
       return true;
     },
-    addPlan: (input) => setPlans((current) => [
-      ...current,
-      { id: `plan-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, ...input },
-    ]),
+    addPlan: (input) => {
+      const plan = { id: uid('plan'), ...input };
+      setPlans((current) => [...current, plan]);
+      return plan;
+    },
     updatePlan: (id, input) => setPlans((current) => current.map((plan) => plan.id === id ? { id, ...input } : plan)),
     deletePlan: (id) => {
       setPlans((current) => current.filter((plan) => plan.id !== id));
@@ -225,7 +262,33 @@ export function AppDataProvider({ children }: PropsWithChildren) {
     ]),
     deleteSession: (id) => setSessions((current) => current.filter((session) => session.id !== id)),
     setScheduledPlan: (weekday, planId) => setSchedule((current) => ({ ...current, [weekday]: planId })),
-    updatePreferences: setPreferences,
+    updatePreferences: (nextPreferences) => {
+      setPreferences(nextPreferences);
+    },
+    updateProfile: setProfile,
+    addBodyweightEntry: (entry) => {
+      const saved = { id: uid('bodyweight'), ...entry };
+      setProfile((current) => ({
+        ...current,
+        currentWeight: saved.weight,
+        bodyweightEntries: [...current.bodyweightEntries, saved].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+      }));
+    },
+    deleteBodyweightEntry: (id) => setProfile((current) => {
+      const entries = current.bodyweightEntries.filter((entry) => entry.id !== id);
+      return { ...current, bodyweightEntries: entries, currentWeight: entries[0]?.weight };
+    }),
+    importStarterTemplates: () => {
+      const exerciseIds = new Set(exercises.map((exercise) => exercise.id));
+      const exerciseNames = new Set(exercises.map((exercise) => exercise.name.trim().toLowerCase()));
+      const exerciseAdditions = starterExercises.filter((exercise) => !exerciseIds.has(exercise.id) && !exerciseNames.has(exercise.name.trim().toLowerCase()));
+      const planIds = new Set(plans.map((plan) => plan.id));
+      const planNames = new Set(plans.map((plan) => plan.name.trim().toLowerCase()));
+      const planAdditions = starterPlans.filter((plan) => !planIds.has(plan.id) && !planNames.has(plan.name.trim().toLowerCase()));
+      setExercises((current) => [...current, ...exerciseAdditions]);
+      setPlans((current) => [...current, ...planAdditions]);
+      return { exercisesAdded: exerciseAdditions.length, plansAdded: planAdditions.length };
+    },
     applySessionToPlan: (sessionId) => {
       const session = sessions.find((candidate) => candidate.id === sessionId);
       if (!session || !plans.some((plan) => plan.id === session.planId)) return false;
@@ -251,13 +314,51 @@ export function AppDataProvider({ children }: PropsWithChildren) {
       await clearAppState();
       setExercises(starterExercises); setPlans(starterPlans);
       setSessions([]); setSchedule(starterSchedule); setPreferences(defaultPreferences);
+      setProfile(defaultProfile);
+      setActiveWorkoutDraft(null);
     },
     replaceAllData: async (data) => {
       await saveAppState(data);
       setExercises(data.exercises); setPlans(data.plans);
       setSessions(data.sessions); setSchedule(data.schedule); setPreferences(data.preferences);
+      setProfile(data.profile ?? defaultProfile);
+      setActiveWorkoutDraft(data.activeWorkoutDraft ?? null);
     },
-  }), [exercises, plans, sessions, schedule, preferences]);
+    startWorkoutDraft: (plan) => {
+      const draft: ActiveWorkoutDraft = {
+        id: uid('active-workout'),
+        planId: plan.id,
+        planName: plan.name,
+        startedAt: new Date().toISOString(),
+        note: '',
+        exerciseLogs: plan.exercises.flatMap((item) => {
+          const exercise = exercises.find((candidate) => candidate.id === item.exerciseId);
+          return exercise ? [{
+            id: uid('draft-exercise'),
+            exerciseId: exercise.id,
+            exerciseName: exercise.name,
+            trackingMethod: exercise.trackingMethod,
+            completed: false,
+            sets: item.plannedSets.map((target) => ({
+              id: uid('draft-set'),
+              target: { ...target },
+              reps: '',
+              weight: '',
+              duration: '',
+              distance: '',
+              count: '',
+              work: '',
+              rest: '',
+            })),
+          }] : [];
+        }),
+      };
+      setActiveWorkoutDraft(draft);
+      return draft;
+    },
+    updateActiveWorkoutDraft: (change) => setActiveWorkoutDraft((current) => current ? change(current) : current),
+    discardActiveWorkoutDraft: () => setActiveWorkoutDraft(null),
+  }), [exercises, plans, sessions, schedule, preferences, profile, activeWorkoutDraft]);
 
   if (!isHydrated) return <View style={loadingStyles.screen}><ActivityIndicator size="large" color="#c9f46b" /><Text style={loadingStyles.text}>Loading your workouts…</Text></View>;
   return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;

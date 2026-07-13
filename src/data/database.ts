@@ -1,8 +1,8 @@
 import * as SQLite from 'expo-sqlite';
-import type { Exercise, UserPreferences, WeeklySchedule, WorkoutPlan, WorkoutSession } from './AppDataContext';
+import type { ActiveWorkoutDraft, Exercise, UserPreferences, WeeklySchedule, WorkoutPlan, WorkoutSession, UserProfile } from './AppDataContext';
 
 const DATABASE_NAME = 'form-workout.db';
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 4;
 
 export type PersistedAppState = {
   exercises: Exercise[];
@@ -10,6 +10,8 @@ export type PersistedAppState = {
   sessions: WorkoutSession[];
   schedule: WeeklySchedule;
   preferences: UserPreferences;
+  profile?: UserProfile;
+  activeWorkoutDraft?: ActiveWorkoutDraft | null;
 };
 
 type StateRow = { schema_version: number; payload: string };
@@ -19,6 +21,8 @@ let saveQueue: Promise<void> = Promise.resolve();
 const validMuscleGroups = new Set(['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core', 'Full Body']);
 const validExerciseTypes = new Set(['Strength', 'Bodyweight', 'Cardio', 'Yoga', 'Pilates', 'Mobility', 'Stretching', 'Custom']);
 const validTrackingMethods = new Set(['weight_reps', 'reps_only', 'assisted_weight', 'timed_sets', 'duration', 'distance_duration', 'intervals', 'custom_count']);
+const validGoals = new Set(['general_fitness', 'build_muscle', 'lose_fat', 'build_strength', 'improve_endurance', 'mobility']);
+const validExperienceLevels = new Set(['beginner', 'intermediate', 'advanced']);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -56,6 +60,28 @@ function isValidSession(value: unknown) {
           .every((key) => isOptionalNumber(set[key]))));
 }
 
+function isValidActiveWorkoutDraft(value: unknown) {
+  return value === null || (isRecord(value) && typeof value.id === 'string' && typeof value.planId === 'string' &&
+    typeof value.planName === 'string' && typeof value.startedAt === 'string' && typeof value.note === 'string' &&
+    Array.isArray(value.exerciseLogs) && value.exerciseLogs.every((log) => isRecord(log) && typeof log.id === 'string' &&
+      typeof log.exerciseId === 'string' && typeof log.exerciseName === 'string' && validTrackingMethods.has(String(log.trackingMethod)) &&
+      typeof log.completed === 'boolean' && Array.isArray(log.sets) && log.sets.every((set) => isRecord(set) &&
+        typeof set.id === 'string' && isValidSet(set.target) && ['reps', 'weight', 'duration', 'distance', 'count', 'work', 'rest']
+          .every((key) => typeof set[key] === 'string'))));
+}
+
+function isValidProfile(value: unknown) {
+  return isRecord(value) && typeof value.displayName === 'string' &&
+    (value.heightInches === undefined || (typeof value.heightInches === 'number' && Number.isFinite(value.heightInches) && value.heightInches > 0)) &&
+    (value.currentWeight === undefined || (typeof value.currentWeight === 'number' && Number.isFinite(value.currentWeight) && value.currentWeight > 0)) &&
+    validGoals.has(String(value.goal)) && validExperienceLevels.has(String(value.experienceLevel)) &&
+    Array.isArray(value.preferredTrainingDays) && value.preferredTrainingDays.every((day) => Number.isInteger(day) && day >= 0 && day <= 6) &&
+    Array.isArray(value.bodyweightEntries) && value.bodyweightEntries.every((entry) => isRecord(entry) &&
+      typeof entry.id === 'string' && typeof entry.date === 'string' &&
+      typeof entry.weight === 'number' && Number.isFinite(entry.weight) && entry.weight > 0 &&
+      typeof entry.note === 'string');
+}
+
 async function database() {
   databasePromise ??= SQLite.openDatabaseAsync(DATABASE_NAME);
   const db = await databasePromise;
@@ -77,7 +103,8 @@ export function isValidAppState(value: unknown): value is PersistedAppState {
   if (!Array.isArray(state.exercises) || !state.exercises.every(isValidExercise) ||
       !Array.isArray(state.plans) || !state.plans.every(isValidPlan) ||
       !Array.isArray(state.sessions) || !state.sessions.every(isValidSession) ||
-      !isRecord(state.schedule) || !isRecord(state.preferences) ||
+      !isRecord(state.schedule) || !isRecord(state.preferences) || !isValidActiveWorkoutDraft(state.activeWorkoutDraft ?? null) ||
+      !isValidProfile(state.profile ?? { displayName: '', goal: 'general_fitness', experienceLevel: 'beginner', preferredTrainingDays: [1, 3, 5], bodyweightEntries: [] }) ||
       !['lb', 'kg'].includes(String(state.preferences.weightUnit)) || !['mi', 'km'].includes(String(state.preferences.distanceUnit))) return false;
   const exerciseIds = new Set(state.exercises.map((exercise) => exercise.id));
   const planIds = new Set(state.plans.map((plan) => plan.id));
@@ -97,6 +124,12 @@ export async function loadAppState(): Promise<{ data: PersistedAppState | null; 
     let parsed: unknown = JSON.parse(row.payload);
     if (row.schema_version === 1 && parsed && typeof parsed === 'object') {
       parsed = { ...(parsed as object), preferences: { weightUnit: 'lb', distanceUnit: 'mi' } };
+    }
+    if ((row.schema_version === 1 || row.schema_version === 2) && parsed && typeof parsed === 'object') {
+      parsed = { ...(parsed as object), activeWorkoutDraft: null };
+    }
+    if (row.schema_version <= 3 && parsed && typeof parsed === 'object') {
+      parsed = { ...(parsed as object), profile: { displayName: '', goal: 'general_fitness', experienceLevel: 'beginner', preferredTrainingDays: [1, 3, 5], bodyweightEntries: [] } };
     }
     if (!isValidAppState(parsed)) throw new Error('Stored data did not match the expected shape.');
     return { data: parsed, recoveredFromCorruption: false };
