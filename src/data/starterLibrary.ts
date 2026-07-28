@@ -1,4 +1,4 @@
-import type { Exercise, PlannedSet, WorkoutPlan, WeeklySchedule } from './AppDataContext';
+import type { Exercise, PlannedSet, StarterPlanMetadata, WorkoutPlan, WeeklySchedule } from './AppDataContext';
 
 const strengthSet = (id: string, reps = 10, weight?: number): PlannedSet => ({ id, targetReps: reps, targetWeight: weight });
 const timedSet = (id: string, seconds = 30): PlannedSet => ({ id, targetDurationSeconds: seconds });
@@ -88,29 +88,37 @@ const planExercise = (exerciseId: string, plannedSets: PlannedSet[]): { id: stri
   plannedSets,
 });
 
+const metadata = (
+  split: StarterPlanMetadata['split'],
+  difficulty: StarterPlanMetadata['difficulty'],
+  estimatedMinutes: number,
+  equipmentCategory: StarterPlanMetadata['equipmentCategory'],
+  goals: StarterPlanMetadata['goals'],
+): StarterPlanMetadata => ({ split, difficulty, estimatedMinutes, equipmentCategory, goals });
+
 export const starterPlans: WorkoutPlan[] = [
-  { id: 'push-day', name: 'Push Day', notes: 'Chest, shoulders, and triceps.', exercises: [
+  { id: 'push-day', name: 'Push Day', notes: 'Chest, shoulders, and triceps with moderate hypertrophy volume.', template: metadata('push', 'intermediate', 55, 'gym', ['build_muscle', 'build_strength']), exercises: [
     planExercise('bench-press', sets('bench-press', 3, 8)),
     planExercise('incline-press', sets('incline-press', 3, 10)),
     planExercise('shoulder-press', sets('shoulder-press', 3, 10)),
     planExercise('lateral-raise', sets('lateral-raise', 3, 12)),
     planExercise('triceps-pushdown', sets('triceps-pushdown', 3, 12)),
   ] },
-  { id: 'pull-day', name: 'Pull Day', notes: 'Back, rear delts, and biceps.', exercises: [
+  { id: 'pull-day', name: 'Pull Day', notes: 'Back, rear delts, and biceps with balanced vertical and horizontal pulling.', template: metadata('pull', 'intermediate', 55, 'gym', ['build_muscle', 'build_strength']), exercises: [
     planExercise('lat-pulldown', sets('lat-pulldown', 3, 10)),
     planExercise('barbell-row', sets('barbell-row', 3, 8)),
     planExercise('seated-cable-row', sets('seated-cable-row', 3, 10)),
     planExercise('face-pull', sets('face-pull', 3, 12)),
     planExercise('biceps-curl', sets('biceps-curl', 3, 12)),
   ] },
-  { id: 'leg-day', name: 'Leg Day', notes: 'Squat pattern, hinge, single-leg, and calves.', exercises: [
+  { id: 'leg-day', name: 'Leg Day', notes: 'Squat pattern, hinge, machine accessories, and calves.', template: metadata('legs', 'intermediate', 60, 'gym', ['build_muscle', 'build_strength']), exercises: [
     planExercise('squat', sets('squat', 3, 8)),
     planExercise('romanian-deadlift', sets('romanian-deadlift', 3, 10)),
     planExercise('leg-press', sets('leg-press', 3, 10)),
     planExercise('leg-curl', sets('leg-curl', 3, 12)),
     planExercise('standing-calf-raise', sets('standing-calf-raise', 3, 15)),
   ] },
-  { id: 'upper-body', name: 'Upper Body', notes: 'Balanced upper-body strength session.', exercises: [
+  { id: 'upper-body', name: 'Upper Body', notes: 'Balanced upper-body session for two-to-four day training weeks.', template: metadata('upper', 'intermediate', 55, 'gym', ['general_fitness', 'build_muscle']), exercises: [
     planExercise('dumbbell-bench-press', sets('dumbbell-bench-press', 3, 10)),
     planExercise('seated-cable-row', sets('seated-cable-row', 3, 10)),
     planExercise('barbell-overhead-press', sets('barbell-overhead-press', 3, 8)),
@@ -118,40 +126,40 @@ export const starterPlans: WorkoutPlan[] = [
     planExercise('hammer-curl', sets('hammer-curl', 2, 12)),
     planExercise('overhead-triceps-extension', sets('overhead-triceps-extension', 2, 12)),
   ] },
-  { id: 'lower-body', name: 'Lower Body', notes: 'Leg and glute-focused session.', exercises: [
+  { id: 'lower-body', name: 'Lower Body', notes: 'Leg and glute-focused session with a short mobility finish.', template: metadata('lower', 'beginner', 45, 'minimal', ['general_fitness', 'build_muscle']), exercises: [
     planExercise('goblet-squat', sets('goblet-squat', 3, 10)),
     planExercise('hip-thrust', sets('hip-thrust', 3, 10)),
     planExercise('walking-lunge', sets('walking-lunge', 3, 12)),
     planExercise('leg-extension', sets('leg-extension', 3, 12)),
     planExercise('hamstring-stretch', timedSets('hamstring-stretch', 2, 45)),
   ] },
-  { id: 'full-body-a', name: 'Full Body A', notes: 'Beginner-friendly full-body strength.', exercises: [
+  { id: 'full-body-a', name: 'Full Body A', notes: 'Beginner-friendly full-body strength with simple movement patterns.', template: metadata('full_body', 'beginner', 45, 'gym', ['general_fitness', 'build_muscle']), exercises: [
     planExercise('goblet-squat', sets('goblet-squat', 3, 10)),
     planExercise('machine-chest-press', sets('machine-chest-press', 3, 10)),
     planExercise('lat-pulldown', sets('lat-pulldown', 3, 10)),
     planExercise('romanian-deadlift', sets('romanian-deadlift', 3, 10)),
     planExercise('plank', timedSets('plank', 3, 30)),
   ] },
-  { id: 'full-body-b', name: 'Full Body B', notes: 'Full-body strength with conditioning.', exercises: [
+  { id: 'full-body-b', name: 'Full Body B', notes: 'Full-body strength with a light conditioning finisher.', template: metadata('full_body', 'intermediate', 50, 'minimal', ['general_fitness', 'improve_endurance']), exercises: [
     planExercise('leg-press', sets('leg-press', 3, 10)),
     planExercise('incline-press', sets('incline-press', 3, 10)),
     planExercise('one-arm-dumbbell-row', sets('one-arm-dumbbell-row', 3, 10)),
     planExercise('kettlebell-swing', sets('kettlebell-swing', 3, 15)),
     planExercise('easy-run', [distanceSet('easy-run-1', 1, 12)]),
   ] },
-  { id: 'core-reset', name: 'Core Reset', notes: 'Short bodyweight core work.', exercises: [
+  { id: 'core-reset', name: 'Core Reset', notes: 'Short core session for trunk strength and control.', template: metadata('core', 'beginner', 25, 'minimal', ['general_fitness', 'mobility']), exercises: [
     planExercise('plank', timedSets('plank', 3, 30)),
     planExercise('side-plank', timedSets('side-plank', 2, 30)),
     planExercise('dead-bug', sets('dead-bug', 3, 10)),
     planExercise('ab-wheel-rollout', sets('ab-wheel-rollout', 3, 8)),
   ] },
-  { id: 'conditioning', name: 'Cardio / Conditioning', notes: 'Simple conditioning circuit.', exercises: [
+  { id: 'conditioning', name: 'Cardio / Conditioning', notes: 'Simple conditioning circuit with intervals and mixed effort.', template: metadata('conditioning', 'intermediate', 35, 'gym', ['improve_endurance', 'general_fitness']), exercises: [
     planExercise('rowing-machine', [distanceSet('rowing-machine-1', 1, 8)]),
     planExercise('battle-ropes', [intervalSet('battle-ropes-1', 30, 30), intervalSet('battle-ropes-2', 30, 30), intervalSet('battle-ropes-3', 30, 30)]),
     planExercise('burpee', sets('burpee', 3, 10)),
     planExercise('jump-rope', timedSets('jump-rope', 3, 60)),
   ] },
-  { id: 'mobility-recovery', name: 'Mobility / Recovery', notes: 'Low-intensity recovery and mobility.', exercises: [
+  { id: 'mobility-recovery', name: 'Mobility / Recovery', notes: 'Low-intensity recovery flow for hips, spine, shoulders, and soft tissue.', template: metadata('mobility', 'beginner', 25, 'minimal', ['mobility', 'general_fitness']), exercises: [
     planExercise('worlds-greatest-stretch', timedSets('worlds-greatest-stretch', 2, 45)),
     planExercise('hip-flexor-stretch', timedSets('hip-flexor-stretch', 2, 45)),
     planExercise('thoracic-rotation', sets('thoracic-rotation', 2, 8)),

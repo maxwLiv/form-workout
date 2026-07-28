@@ -56,11 +56,24 @@ export type PlanExercise = {
   plannedSets: PlannedSet[];
 };
 
+export type PlanDifficulty = 'beginner' | 'intermediate' | 'advanced';
+export type PlanGoal = 'general_fitness' | 'build_muscle' | 'build_strength' | 'improve_endurance' | 'mobility';
+export type EquipmentCategory = 'bodyweight' | 'minimal' | 'gym';
+export type TrainingSplit = 'push' | 'pull' | 'legs' | 'upper' | 'lower' | 'full_body' | 'core' | 'conditioning' | 'mobility';
+export type StarterPlanMetadata = {
+  difficulty: PlanDifficulty;
+  goals: PlanGoal[];
+  estimatedMinutes: number;
+  equipmentCategory: EquipmentCategory;
+  split: TrainingSplit;
+};
+
 export type WorkoutPlan = {
   id: string;
   name: string;
   notes: string;
   exercises: PlanExercise[];
+  template?: StarterPlanMetadata;
 };
 
 export type WorkoutPlanInput = Omit<WorkoutPlan, 'id'>;
@@ -177,7 +190,7 @@ type AppDataValue = {
   updateProfile: (profile: UserProfile) => void;
   addBodyweightEntry: (entry: Omit<BodyweightEntry, 'id'>) => void;
   deleteBodyweightEntry: (id: string) => void;
-  importStarterTemplates: () => { exercisesAdded: number; plansAdded: number };
+  importStarterTemplates: (planIds?: string[]) => { exercisesAdded: number; plansAdded: number; plansSkipped: number };
   applySessionToPlan: (sessionId: string) => boolean;
   startWorkoutDraft: (plan: WorkoutPlan) => ActiveWorkoutDraft | null;
   updateActiveWorkoutDraft: (change: (draft: ActiveWorkoutDraft) => ActiveWorkoutDraft) => void;
@@ -278,16 +291,36 @@ export function AppDataProvider({ children }: PropsWithChildren) {
       const entries = current.bodyweightEntries.filter((entry) => entry.id !== id);
       return { ...current, bodyweightEntries: entries, currentWeight: entries[0]?.weight };
     }),
-    importStarterTemplates: () => {
-      const exerciseIds = new Set(exercises.map((exercise) => exercise.id));
-      const exerciseNames = new Set(exercises.map((exercise) => exercise.name.trim().toLowerCase()));
-      const exerciseAdditions = starterExercises.filter((exercise) => !exerciseIds.has(exercise.id) && !exerciseNames.has(exercise.name.trim().toLowerCase()));
-      const planIds = new Set(plans.map((plan) => plan.id));
+    importStarterTemplates: (planIds) => {
+      const selectedPlanIds = planIds ? new Set(planIds) : null;
+      const selectedPlans = selectedPlanIds ? starterPlans.filter((plan) => selectedPlanIds.has(plan.id)) : starterPlans;
+      const requiredExerciseIds = selectedPlanIds
+        ? new Set(selectedPlans.flatMap((plan) => plan.exercises.map((item) => item.exerciseId)))
+        : null;
+      const exerciseCandidates = requiredExerciseIds
+        ? starterExercises.filter((exercise) => requiredExerciseIds.has(exercise.id))
+        : starterExercises;
+      const existingExerciseById = new Map(exercises.map((exercise) => [exercise.id, exercise]));
+      const existingExerciseByName = new Map(exercises.map((exercise) => [exercise.name.trim().toLowerCase(), exercise]));
+      const exerciseAdditions = exerciseCandidates.filter((exercise) => !existingExerciseById.has(exercise.id) && !existingExerciseByName.has(exercise.name.trim().toLowerCase()));
+      const exerciseIdMap = new Map(exerciseCandidates.map((exercise) => [
+        exercise.id,
+        existingExerciseById.get(exercise.id)?.id ?? existingExerciseByName.get(exercise.name.trim().toLowerCase())?.id ?? exercise.id,
+      ]));
+      const existingPlanIds = new Set(plans.map((plan) => plan.id));
       const planNames = new Set(plans.map((plan) => plan.name.trim().toLowerCase()));
-      const planAdditions = starterPlans.filter((plan) => !planIds.has(plan.id) && !planNames.has(plan.name.trim().toLowerCase()));
-      setExercises((current) => [...current, ...exerciseAdditions]);
-      setPlans((current) => [...current, ...planAdditions]);
-      return { exercisesAdded: exerciseAdditions.length, plansAdded: planAdditions.length };
+      const planAdditions = selectedPlans.filter((plan) => !existingPlanIds.has(plan.id) && !planNames.has(plan.name.trim().toLowerCase()));
+      setExercises((current) => [...current, ...exerciseAdditions.map((exercise) => ({ ...exercise }))]);
+      setPlans((current) => [...current, ...planAdditions.map((plan) => ({
+        ...plan,
+        template: plan.template ? { ...plan.template, goals: [...plan.template.goals] } : undefined,
+        exercises: plan.exercises.map((item) => ({
+          ...item,
+          exerciseId: exerciseIdMap.get(item.exerciseId) ?? item.exerciseId,
+          plannedSets: item.plannedSets.map((set) => ({ ...set })),
+        })),
+      }))]);
+      return { exercisesAdded: exerciseAdditions.length, plansAdded: planAdditions.length, plansSkipped: selectedPlans.length - planAdditions.length };
     },
     applySessionToPlan: (sessionId) => {
       const session = sessions.find((candidate) => candidate.id === sessionId);
