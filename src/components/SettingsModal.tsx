@@ -140,7 +140,7 @@ export function SettingsModal({ visible, onClose }: { visible: boolean; onClose:
           </SettingsGroup>
           <Text style={styles.helper}>Backups contain workout data, profile details, preferences, and in-progress workout drafts in a portable JSON file.</Text>
 
-          <View style={styles.about}><View style={styles.appMark}><Ionicons name="barbell" size={25} color={colors.darkText} /></View><Text style={styles.appName}>Form Workout</Text><Text style={styles.version}>Version 0.9.0</Text><Text style={styles.aboutText}>Your workout data is stored locally on this device.</Text></View>
+          <View style={styles.about}><View style={styles.appMark}><Ionicons name="barbell" size={25} color={colors.darkText} /></View><Text style={styles.appName}>Form Workout</Text><Text style={styles.version}>Version 0.9.1</Text><Text style={styles.aboutText}>Your workout data is stored locally on this device.</Text></View>
         </ScrollView>
         <FeedbackModal visible={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
       </SafeAreaView>
@@ -173,7 +173,7 @@ function FeedbackModal({ visible, onClose }: { visible: boolean; onClose: () => 
       steps.trim() || 'Not provided',
       '',
       'App context:',
-      'App: Form Workout 0.9.0',
+      'App: Form Workout 0.9.1',
       `Platform: ${Platform.OS}`,
       `Submitted: ${new Date().toISOString()}`,
       `Plans: ${plans.length}`,
