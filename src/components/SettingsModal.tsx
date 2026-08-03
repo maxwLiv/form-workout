@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as MailComposer from 'expo-mail-composer';
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ExperienceLevel, FitnessGoal, UserPreferences, useAppData } from '../data/AppDataContext';
 import { chooseBackup, exportBackup } from '../data/backup';
@@ -159,6 +159,9 @@ function FeedbackModal({ visible, onClose }: { visible: boolean; onClose: () => 
   const [steps, setSteps] = useState('');
   const [fallbackText, setFallbackText] = useState('');
   const [sending, setSending] = useState(false);
+  function formattedFallback(subject: string, body: string) {
+    return `To: ${feedbackRecipient}\nSubject: ${subject}\n\n${body}`;
+  }
   function buildBody() {
     return [
       `Feedback type: ${type}`,
@@ -180,6 +183,17 @@ function FeedbackModal({ visible, onClose }: { visible: boolean; onClose: () => 
       `Units: ${preferences.weightUnit}, ${preferences.distanceUnit}`,
     ].join('\n');
   }
+  async function openMailLink(subject: string, body: string) {
+    const url = `mailto:${feedbackRecipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const canOpen = await Linking.canOpenURL(url);
+    if (!canOpen) return false;
+    await Linking.openURL(url);
+    return true;
+  }
+  function showManualFallback(subject: string, body: string) {
+    setFallbackText(formattedFallback(subject, body));
+    Alert.alert('Email app not available', 'A prepared report is shown below. Select the text and send it to maxwellliv@gmail.com.');
+  }
   async function sendFeedback() {
     if (!message.trim()) {
       Alert.alert('Add a message', 'Tell us what happened or what would make Form Workout better.');
@@ -191,7 +205,15 @@ function FeedbackModal({ visible, onClose }: { visible: boolean; onClose: () => 
     try {
       const available = await MailComposer.isAvailableAsync();
       if (!available) {
-        setFallbackText(`To: ${feedbackRecipient}\nSubject: ${subject}\n\n${body}`);
+        const opened = await openMailLink(subject, body);
+        if (opened) {
+          setMessage('');
+          setSteps('');
+          setFallbackText('');
+          onClose();
+          return;
+        }
+        showManualFallback(subject, body);
         return;
       }
       const result = await MailComposer.composeAsync({ recipients: [feedbackRecipient], subject, body });
@@ -201,8 +223,7 @@ function FeedbackModal({ visible, onClose }: { visible: boolean; onClose: () => 
       setFallbackText('');
       onClose();
     } catch (error) {
-      setFallbackText(`To: ${feedbackRecipient}\nSubject: ${subject}\n\n${body}`);
-      Alert.alert('Could not open email', error instanceof Error ? error.message : 'Copy the prepared report and send it manually.');
+      showManualFallback(subject, body);
     } finally {
       setSending(false);
     }
@@ -220,7 +241,7 @@ function FeedbackModal({ visible, onClose }: { visible: boolean; onClose: () => 
             <TextInput value={message} onChangeText={setMessage} placeholder="What happened?" placeholderTextColor="#747c70" multiline style={[styles.textInput, styles.feedbackInput]} />
             <Text style={styles.feedbackLabel}>STEPS OPTIONAL</Text>
             <TextInput value={steps} onChangeText={setSteps} placeholder="1. Opened...\n2. Tapped...\n3. Saw..." placeholderTextColor="#747c70" multiline style={[styles.textInput, styles.feedbackStepsInput]} />
-            {!!fallbackText && <View style={styles.fallbackBox}><Text style={styles.fallbackTitle}>Email is not available</Text><Text style={styles.fallbackHelp}>Select this prepared report and send it to maxwellliv@gmail.com.</Text><TextInput value={fallbackText} editable={false} multiline selectTextOnFocus style={styles.fallbackText} /></View>}
+            {!!fallbackText && <View style={styles.fallbackBox}><Text style={styles.fallbackTitle}>Email app not available</Text><Text style={styles.fallbackHelp}>Select this prepared report and send it to maxwellliv@gmail.com.</Text><TextInput value={fallbackText} editable={false} multiline selectTextOnFocus style={styles.fallbackText} /></View>}
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
