@@ -26,6 +26,8 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+sprint-artifacts/expo-dev-server*.log
+sprint-artifacts/expo-dev-server.pid
 
 # macOS
 .DS_Store
