@@ -8,11 +8,13 @@ import { completedSessionToday, summarizeExerciseLog } from '../utils/sessionSum
 import { SettingsModal } from '../components/SettingsModal';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { displayVolume, formatMeasurement } from '../utils/units';
+import { FeedbackModal } from '../components/FeedbackModal';
 
 export function TodayScreen() {
   const { plans, exercises, sessions, schedule, preferences, activeWorkoutDraft, startWorkoutDraft, discardActiveWorkoutDraft } = useAppData();
   const [loggerOpen, setLoggerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const todayIndex = new Date().getDay();
   const scheduledPlan = plans.find((plan) => plan.id === schedule[todayIndex]);
   const completedSession = completedSessionToday(sessions, scheduledPlan?.id);
@@ -39,7 +41,7 @@ export function TodayScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
-        <View style={styles.topRow}><View><Text style={styles.eyebrow}>{date}</Text><Text style={styles.heading}>{completedSession ? 'Nice work today.' : 'Ready to move?'}</Text></View><TouchableOpacity accessibilityRole="button" accessibilityLabel="Open settings" onPress={() => setSettingsOpen(true)} style={styles.settingsButton}><Ionicons name="settings-outline" size={23} color={colors.text} /></TouchableOpacity></View>
+        <View style={styles.topRow}><View style={styles.headingCopy}><Text style={styles.eyebrow}>{date}</Text><Text style={styles.heading}>{completedSession ? 'Nice work today.' : 'Ready to move?'}</Text></View><View style={styles.topActions}><TouchableOpacity accessibilityRole="button" accessibilityLabel="Send feedback" onPress={() => setFeedbackOpen(true)} style={styles.feedbackButton}><Ionicons name="chatbubble-ellipses-outline" size={22} color={colors.lime} /></TouchableOpacity><TouchableOpacity accessibilityRole="button" accessibilityLabel="Open settings" onPress={() => setSettingsOpen(true)} style={styles.settingsButton}><Ionicons name="settings-outline" size={23} color={colors.text} /></TouchableOpacity></View></View>
         <View style={[styles.hero, completedSession && styles.completedHero]}>
           <Text style={styles.heroEyebrow}>{completedSession ? 'SESSION SAVED' : "TODAY'S WORKOUT"}</Text>
           <Text style={styles.heroTitle}>{completedSession ? 'Workout complete' : scheduledPlan?.name ?? 'Recovery day'}</Text>
@@ -74,13 +76,14 @@ export function TodayScreen() {
       </ScrollView>
       <WorkoutLoggerModal visible={loggerOpen} onClose={() => setLoggerOpen(false)} />
       <SettingsModal visible={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <FeedbackModal visible={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background }, page: { paddingHorizontal: 22, paddingTop: 28, paddingBottom: 35 },
-  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 25 }, settingsButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }, eyebrow: { color: colors.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.5 }, heading: { color: colors.text, fontSize: 32, fontWeight: '800', marginTop: 7 },
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, marginBottom: 25 }, headingCopy: { flex: 1 }, topActions: { flexDirection: 'row', gap: 9 }, settingsButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }, feedbackButton: { width: 44, height: 44, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }, eyebrow: { color: colors.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.5 }, heading: { color: colors.text, fontSize: 32, fontWeight: '800', marginTop: 7 },
   hero: { backgroundColor: colors.green, borderRadius: 24, padding: 25 }, completedHero: { backgroundColor: '#355c3e' }, heroEyebrow: { color: colors.lime, fontSize: 11, fontWeight: '800', letterSpacing: 1.4 },
   heroTitle: { color: 'white', fontSize: 37, fontWeight: '800', marginTop: 10 }, heroDetail: { color: '#c5d0c3', fontSize: 14, marginTop: 4 },
   startButton: { backgroundColor: colors.lime, borderRadius: 12, marginTop: 28, padding: 15, alignItems: 'center' }, disabledButton: { opacity: 0.62 }, startButtonText: { color: '#17200f', fontSize: 15, fontWeight: '800' },

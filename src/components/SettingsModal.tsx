@@ -1,12 +1,12 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import * as MailComposer from 'expo-mail-composer';
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ExperienceLevel, FitnessGoal, UserPreferences, useAppData } from '../data/AppDataContext';
 import { chooseBackup, exportBackup } from '../data/backup';
 import { colors } from '../theme';
 import { displayWeight, formatMeasurement, storeWeight } from '../utils/units';
+import { FeedbackModal } from './FeedbackModal';
 
 export function SettingsModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { exercises, plans, sessions, schedule, preferences, profile, activeWorkoutDraft, updatePreferences, updateProfile, addBodyweightEntry, deleteBodyweightEntry, importStarterTemplates, resetAllData, replaceAllData } = useAppData();
@@ -143,107 +143,6 @@ export function SettingsModal({ visible, onClose }: { visible: boolean; onClose:
           <View style={styles.about}><View style={styles.appMark}><Ionicons name="barbell" size={25} color={colors.darkText} /></View><Text style={styles.appName}>Form Workout</Text><Text style={styles.version}>Version 0.9.1</Text><Text style={styles.aboutText}>Your workout data is stored locally on this device.</Text></View>
         </ScrollView>
         <FeedbackModal visible={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
-      </SafeAreaView>
-    </Modal>
-  );
-}
-
-type FeedbackType = 'Bug' | 'Idea' | 'Confusing' | 'Other';
-const feedbackTypes: FeedbackType[] = ['Bug', 'Idea', 'Confusing', 'Other'];
-const feedbackRecipient = 'maxwellliv@gmail.com';
-
-function FeedbackModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const { exercises, plans, sessions, preferences, activeWorkoutDraft } = useAppData();
-  const [type, setType] = useState<FeedbackType>('Bug');
-  const [message, setMessage] = useState('');
-  const [steps, setSteps] = useState('');
-  const [fallbackText, setFallbackText] = useState('');
-  const [sending, setSending] = useState(false);
-  function formattedFallback(subject: string, body: string) {
-    return `To: ${feedbackRecipient}\nSubject: ${subject}\n\n${body}`;
-  }
-  function buildBody() {
-    return [
-      `Feedback type: ${type}`,
-      '',
-      'Message:',
-      message.trim(),
-      '',
-      'Steps to reproduce:',
-      steps.trim() || 'Not provided',
-      '',
-      'App context:',
-      'App: Form Workout 0.9.1',
-      `Platform: ${Platform.OS}`,
-      `Submitted: ${new Date().toISOString()}`,
-      `Plans: ${plans.length}`,
-      `Exercises: ${exercises.length}`,
-      `Completed workouts: ${sessions.length}`,
-      `Active workout draft: ${activeWorkoutDraft ? activeWorkoutDraft.planName : 'None'}`,
-      `Units: ${preferences.weightUnit}, ${preferences.distanceUnit}`,
-    ].join('\n');
-  }
-  async function openMailLink(subject: string, body: string) {
-    const url = `mailto:${feedbackRecipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    const canOpen = await Linking.canOpenURL(url);
-    if (!canOpen) return false;
-    await Linking.openURL(url);
-    return true;
-  }
-  function showManualFallback(subject: string, body: string) {
-    setFallbackText(formattedFallback(subject, body));
-    Alert.alert('Email app not available', 'A prepared report is shown below. Select the text and send it to maxwellliv@gmail.com.');
-  }
-  async function sendFeedback() {
-    if (!message.trim()) {
-      Alert.alert('Add a message', 'Tell us what happened or what would make Form Workout better.');
-      return;
-    }
-    const body = buildBody();
-    const subject = `[Form Workout Feedback] ${type}`;
-    setSending(true);
-    try {
-      const available = await MailComposer.isAvailableAsync();
-      if (!available) {
-        const opened = await openMailLink(subject, body);
-        if (opened) {
-          setMessage('');
-          setSteps('');
-          setFallbackText('');
-          onClose();
-          return;
-        }
-        showManualFallback(subject, body);
-        return;
-      }
-      const result = await MailComposer.composeAsync({ recipients: [feedbackRecipient], subject, body });
-      if (result.status === MailComposer.MailComposerStatus.CANCELLED) return;
-      setMessage('');
-      setSteps('');
-      setFallbackText('');
-      onClose();
-    } catch (error) {
-      showManualFallback(subject, body);
-    } finally {
-      setSending(false);
-    }
-  }
-  return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <SafeAreaView style={styles.safeArea}>
-        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={styles.toolbar}><Pressable accessibilityRole="button" onPress={onClose} style={styles.feedbackToolbarAction}><Text style={styles.cancelText}>Cancel</Text></Pressable><Text style={styles.toolbarTitle}>Send Feedback</Text><Pressable accessibilityRole="button" disabled={sending} onPress={sendFeedback} style={styles.feedbackToolbarAction}><Text style={[styles.sendText, sending && styles.disabledText]}>Send</Text></Pressable></View>
-          <ScrollView contentContainerStyle={styles.feedbackContent} keyboardShouldPersistTaps="handled">
-            <Text style={styles.feedbackIntro}>Send bugs, confusing moments, or ideas directly to Maxwell.</Text>
-            <Text style={styles.feedbackLabel}>TYPE</Text>
-            <View style={styles.choiceChips}>{feedbackTypes.map((option) => <Pressable key={option} accessibilityRole="radio" accessibilityState={{ checked: type === option }} onPress={() => setType(option)} style={[styles.choiceChip, type === option && styles.activeChoiceChip]}><Text style={[styles.choiceChipText, type === option && styles.activeChoiceChipText]}>{option}</Text></Pressable>)}</View>
-            <Text style={styles.feedbackLabel}>MESSAGE</Text>
-            <TextInput value={message} onChangeText={setMessage} placeholder="What happened?" placeholderTextColor="#747c70" multiline style={[styles.textInput, styles.feedbackInput]} />
-            <Text style={styles.feedbackLabel}>STEPS OPTIONAL</Text>
-            <TextInput value={steps} onChangeText={setSteps} placeholder="1. Opened...\n2. Tapped...\n3. Saw..." placeholderTextColor="#747c70" multiline style={[styles.textInput, styles.feedbackStepsInput]} />
-            {!!fallbackText && <View style={styles.fallbackBox}><Text style={styles.fallbackTitle}>Email app not available</Text><Text style={styles.fallbackHelp}>Select this prepared report and send it to maxwellliv@gmail.com.</Text><TextInput value={fallbackText} editable={false} multiline selectTextOnFocus style={styles.fallbackText} /></View>}
-          </ScrollView>
-        </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
   );
