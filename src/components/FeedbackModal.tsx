@@ -1,15 +1,14 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import * as MailComposer from 'expo-mail-composer';
 import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { appMetadata } from '../config/appMetadata';
 import { useAppData } from '../data/AppDataContext';
 import { colors } from '../theme';
 
 type FeedbackType = 'Bug' | 'Idea' | 'Confusing' | 'Other';
 const feedbackTypes: FeedbackType[] = ['Bug', 'Idea', 'Confusing', 'Other'];
 const feedbackRecipient = 'maxwellliv@gmail.com';
-const appVersion = '0.9.1';
 
 export function FeedbackModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { exercises, plans, sessions, preferences, activeWorkoutDraft } = useAppData();
@@ -34,7 +33,7 @@ export function FeedbackModal({ visible, onClose }: { visible: boolean; onClose:
       steps.trim() || 'Not provided',
       '',
       'App context:',
-      `App: Form Workout ${appVersion}`,
+      `App: ${appMetadata.name} ${appMetadata.version}`,
       `Platform: ${Platform.OS}`,
       `Submitted: ${new Date().toISOString()}`,
       `Plans: ${plans.length}`,
