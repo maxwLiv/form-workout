@@ -7,6 +7,7 @@ import { useAppData } from '../data/AppDataContext';
 import { colors } from '../theme';
 
 type FeedbackType = 'Bug' | 'Idea' | 'Confusing' | 'Other';
+type PreparedFeedback = { subject: string; body: string; report: string };
 const feedbackTypes: FeedbackType[] = ['Bug', 'Idea', 'Confusing', 'Other'];
 const feedbackRecipient = 'maxwellliv@gmail.com';
 
@@ -15,7 +16,7 @@ export function FeedbackModal({ visible, onClose }: { visible: boolean; onClose:
   const [type, setType] = useState<FeedbackType>('Bug');
   const [message, setMessage] = useState('');
   const [steps, setSteps] = useState('');
-  const [fallbackText, setFallbackText] = useState('');
+  const [preparedFeedback, setPreparedFeedback] = useState<PreparedFeedback | null>(null);
   const [sending, setSending] = useState(false);
 
   function formattedFallback(subject: string, body: string) {
@@ -44,17 +45,62 @@ export function FeedbackModal({ visible, onClose }: { visible: boolean; onClose:
     ].join('\n');
   }
 
-  async function openMailLink(subject: string, body: string) {
-    const url = `mailto:${feedbackRecipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    const canOpen = await Linking.canOpenURL(url);
-    if (!canOpen) return false;
+  function prepareFeedback() {
+    const body = buildBody();
+    const subject = `[Form Workout Feedback] ${type}`;
+    return { subject, body, report: formattedFallback(subject, body) };
+  }
+
+  async function openUrl(url: string) {
     await Linking.openURL(url);
     return true;
   }
 
-  function showManualFallback(subject: string, body: string) {
-    setFallbackText(formattedFallback(subject, body));
-    Alert.alert('Email app not available', 'A prepared report is shown below. Select the text and send it to maxwellliv@gmail.com.');
+  function mailtoUrl(subject: string, body: string) {
+    return `mailto:${feedbackRecipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
+
+  function outlookUrls(subject: string, body: string) {
+    const query = `to=${encodeURIComponent(feedbackRecipient)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    return [`ms-outlook://compose?${query}`, `ms-outlook://emails/new?${query}`];
+  }
+
+  async function tryOpenOutlook(subject: string, body: string) {
+    for (const url of outlookUrls(subject, body)) {
+      try {
+        await openUrl(url);
+        return true;
+      } catch {
+        // Try the next known Outlook compose URL shape.
+      }
+    }
+    return false;
+  }
+
+  async function tryOpenDefaultEmail(subject: string, body: string) {
+    try {
+      await openUrl(mailtoUrl(subject, body));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function showManualFallback(prepared: PreparedFeedback) {
+    setPreparedFeedback(prepared);
+    Alert.alert('Email draft prepared', 'Apple Mail is not configured on this device. Try Outlook, open your default email app, or select the prepared report below.');
+  }
+
+  async function openPreparedWithOutlook() {
+    if (!preparedFeedback) return;
+    const opened = await tryOpenOutlook(preparedFeedback.subject, preparedFeedback.body);
+    if (!opened) Alert.alert('Could not open Outlook', 'Select the prepared report below and send it to maxwellliv@gmail.com.');
+  }
+
+  async function openPreparedWithDefaultEmail() {
+    if (!preparedFeedback) return;
+    const opened = await tryOpenDefaultEmail(preparedFeedback.subject, preparedFeedback.body);
+    if (!opened) Alert.alert('Could not open email app', 'Select the prepared report below and send it to maxwellliv@gmail.com.');
   }
 
   async function sendFeedback() {
@@ -62,31 +108,25 @@ export function FeedbackModal({ visible, onClose }: { visible: boolean; onClose:
       Alert.alert('Add a message', 'Tell us what happened or what would make Form Workout better.');
       return;
     }
-    const body = buildBody();
-    const subject = `[Form Workout Feedback] ${type}`;
+    const prepared = prepareFeedback();
     setSending(true);
     try {
       const available = await MailComposer.isAvailableAsync();
       if (!available) {
-        const opened = await openMailLink(subject, body);
-        if (opened) {
-          setMessage('');
-          setSteps('');
-          setFallbackText('');
-          onClose();
-          return;
-        }
-        showManualFallback(subject, body);
+        const opened = Platform.OS === 'ios'
+          ? await tryOpenOutlook(prepared.subject, prepared.body) || await tryOpenDefaultEmail(prepared.subject, prepared.body)
+          : await tryOpenDefaultEmail(prepared.subject, prepared.body);
+        if (!opened) showManualFallback(prepared);
         return;
       }
-      const result = await MailComposer.composeAsync({ recipients: [feedbackRecipient], subject, body });
+      const result = await MailComposer.composeAsync({ recipients: [feedbackRecipient], subject: prepared.subject, body: prepared.body });
       if (result.status === MailComposer.MailComposerStatus.CANCELLED) return;
       setMessage('');
       setSteps('');
-      setFallbackText('');
+      setPreparedFeedback(null);
       onClose();
     } catch {
-      showManualFallback(subject, body);
+      showManualFallback(prepared);
     } finally {
       setSending(false);
     }
@@ -109,7 +149,15 @@ export function FeedbackModal({ visible, onClose }: { visible: boolean; onClose:
             <TextInput value={message} onChangeText={setMessage} placeholder="What happened?" placeholderTextColor="#747c70" multiline style={[styles.textInput, styles.feedbackInput]} />
             <Text style={styles.label}>STEPS OPTIONAL</Text>
             <TextInput value={steps} onChangeText={setSteps} placeholder="1. Opened...\n2. Tapped...\n3. Saw..." placeholderTextColor="#747c70" multiline style={[styles.textInput, styles.stepsInput]} />
-            {!!fallbackText && <View style={styles.fallbackBox}><Text style={styles.fallbackTitle}>Email app not available</Text><Text style={styles.fallbackHelp}>Select this prepared report and send it to maxwellliv@gmail.com.</Text><TextInput value={fallbackText} editable={false} multiline selectTextOnFocus style={styles.fallbackText} /></View>}
+            {preparedFeedback && <View style={styles.fallbackBox}>
+              <Text style={styles.fallbackTitle}>Email draft prepared</Text>
+              <Text style={styles.fallbackHelp}>Apple Mail is not configured. Open Outlook, use your default email app, or select the report below and send it to maxwellliv@gmail.com.</Text>
+              <View style={styles.fallbackActions}>
+                {Platform.OS === 'ios' && <Pressable accessibilityRole="button" onPress={openPreparedWithOutlook} style={styles.fallbackButton}><Text style={styles.fallbackButtonText}>Open Outlook</Text></Pressable>}
+                <Pressable accessibilityRole="button" onPress={openPreparedWithDefaultEmail} style={styles.secondaryFallbackButton}><Text style={styles.secondaryFallbackText}>Open email app</Text></Pressable>
+              </View>
+              <TextInput value={preparedFeedback.report} editable={false} multiline selectTextOnFocus style={styles.fallbackText} />
+            </View>}
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -140,5 +188,10 @@ const styles = StyleSheet.create({
   fallbackBox: { marginTop: 18, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 12 },
   fallbackTitle: { color: colors.text, fontSize: 15, fontWeight: '800' },
   fallbackHelp: { color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 4, marginBottom: 8 },
+  fallbackActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+  fallbackButton: { minHeight: 40, borderRadius: 10, backgroundColor: colors.lime, paddingHorizontal: 13, alignItems: 'center', justifyContent: 'center' },
+  fallbackButtonText: { color: colors.darkText, fontSize: 12, fontWeight: '800' },
+  secondaryFallbackButton: { minHeight: 40, borderRadius: 10, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 13, alignItems: 'center', justifyContent: 'center' },
+  secondaryFallbackText: { color: colors.text, fontSize: 12, fontWeight: '800' },
   fallbackText: { minHeight: 190, borderRadius: 10, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, color: colors.text, padding: 10, fontSize: 12, textAlignVertical: 'top' },
 });
